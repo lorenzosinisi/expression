@@ -113,6 +113,16 @@ defmodule Expression.EvalTest do
              })
   end
 
+  test "if with nil values" do
+    {:ok, ast, "", _, _, _} =
+      Parser.parse("@if(status,\nLEFT(status, 2),\nfalse)")
+
+    assert false ==
+             Eval.eval!(ast, %{
+               "status" => nil
+             })
+  end
+
   describe "lambdas" do
     test "with map" do
       {:ok, ast, "", _, _, _} = Parser.parse("@map(foo, &([&1, 'Button']))")

@@ -32,7 +32,6 @@ defmodule Expression.Eval do
 
   @numeric_kernel_operators [:+, :-, :*, :/, :>, :>=, :<, :<=]
   @kernel_operators @numeric_kernel_operators ++ [:==, :!=]
-  @allowed_nested_function_arguments [:function, :lambda] ++ @kernel_operators
 
   def eval!(ast, context, mod \\ Expression.Callbacks)
 
@@ -70,9 +69,8 @@ defmodule Expression.Eval do
   def eval!({:function, opts}, context, mod) do
     function_name = opts[:name] || raise "Functions need a name"
     args = opts[:args] || []
-    arguments = Enum.reduce_while(args, [], &args_reducer(&1, function_name, context, mod, &2))
 
-    case mod.handle(function_name, arguments, context) do
+    case mod.handle(function_name, args, Map.put(context, "__CUSTOM_CALLBACK__", mod)) do
       {:ok, value} -> value
       {:error, reason} -> "ERROR: #{inspect(reason)}"
     end
@@ -312,15 +310,4 @@ defmodule Expression.Eval do
 
   def handle_not_found({:not_found, _}), do: nil
   def handle_not_found(value), do: value
-
-  defp args_reducer({type, _args} = function, function_name, context, mod, acc)
-       when type in @allowed_nested_function_arguments do
-    value = eval!(function, context, mod)
-    flag = if value == true && function_name == "or", do: :halt, else: :cont
-
-    {flag, acc ++ [[literal: value]]}
-  end
-
-  defp args_reducer(function, _function_name, _context, _mod, acc),
-    do: {:cont, acc ++ [function]}
 end

@@ -8,7 +8,10 @@ defmodule Expression.Callbacks.EvalHelpers do
   @spec eval!(term, map) :: term
   def eval!(ast, ctx) do
     ast
-    |> Expression.Eval.eval!(ctx)
+    |> Expression.Eval.eval!(
+      ctx,
+      Map.get(ctx, "__CUSTOM_CALLBACK__", Expression.Callbacks.Standard)
+    )
     |> Expression.Eval.not_founds_as_nil()
   end
 
