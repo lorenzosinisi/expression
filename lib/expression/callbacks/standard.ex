@@ -519,9 +519,12 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression: "clean(value)",
                   context: %{"value" => <<65, 0, 66, 0, 67>>},
                   result: "ABC"
+  @expression_doc expression: "clean(nil)",
+                  result: ""
   def clean(ctx, binary) do
     binary
     |> eval!(ctx)
+    |> to_string()
     |> String.graphemes()
     |> Enum.filter(&String.printable?/1)
     |> Enum.join("")
@@ -537,9 +540,15 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "code(\"A\")",
                   result: 65
+  @expression_doc expression: "code(nil)",
+                  result: nil
   def code(ctx, code_ast) do
-    <<code>> = eval!(code_ast, ctx)
-    code
+    code = eval!(code_ast, ctx)
+
+    if code do
+      <<code>> = code
+      code
+    end
   end
 
   @doc """
@@ -598,6 +607,8 @@ defmodule Expression.Callbacks.Standard do
 
   @doc """
   Returns the first characters in a text string. This is Unicode safe.
+
+  It will return `nil` if the given string is `nil`
   """
   @expression_doc expression: "left(\"foobar\", 4)",
                   result: "foob"
@@ -605,20 +616,28 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression:
                     "left(\"Умерла Мадлен Олбрайт - первая женщина на посту главы Госдепа США\", 20)",
                   result: "Умерла Мадлен Олбрай"
+  @expression_doc expression: "left(nil, 4)",
+                  result: nil
   def left(ctx, binary, size) do
     [binary, size] = eval_args!([binary, size], ctx)
-    String.slice(binary, 0, size)
+
+    if is_binary(binary) do
+      String.slice(binary, 0, size)
+    end
   end
 
   @doc """
-  Returns the number of characters in a text string
+  Returns the number of characters in a text string,
+  returns 0 if the string is null or empty
   """
   @expression_doc expression: "len(\"foo\")",
                   result: 3
   @expression_doc expression: "len(\"zoë\")",
                   result: 3
+  @expression_doc expression: "len(nil)",
+                  result: 0
   def len(ctx, binary) do
-    String.length(eval!(binary, ctx))
+    String.length(to_string(eval!(binary, ctx)))
   end
 
   @doc """
@@ -626,8 +645,14 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "lower(\"Foo Bar\")",
                   result: "foo bar"
+  @expression_doc expression: "lower(nil)",
+                  result: nil
   def lower(ctx, binary) do
-    String.downcase(eval!(binary, ctx))
+    text = eval!(binary, ctx)
+
+    if is_binary(text) do
+      String.downcase(text)
+    end
   end
 
   @doc """
@@ -635,11 +660,17 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "proper(\"foo bar\")",
                   result: "Foo Bar"
+  @expression_doc expression: "proper(nil)",
+                  result: nil
   def proper(ctx, binary) do
-    binary
-    |> eval!(ctx)
-    |> String.split(" ")
-    |> Enum.map_join(" ", &String.capitalize/1)
+    text = eval!(binary, ctx)
+
+    if is_binary(text) do
+      text
+      |> String.capitalize()
+      |> String.split(" ")
+      |> Enum.map_join(" ", &String.capitalize/1)
+    end
   end
 
   @doc """
@@ -647,9 +678,15 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "rept(\"*\", 10)",
                   result: "**********"
+  @expression_doc expression: "rept(nil, 10)",
+                  result: nil
   def rept(ctx, value, amount) do
-    [value, amount] = eval_args!([value, amount], ctx)
-    String.duplicate(value, amount)
+    text = eval!(value, ctx)
+
+    if is_binary(text) do
+      [amount] = eval_args!([amount], ctx)
+      String.duplicate(text, amount)
+    end
   end
 
   @doc """
@@ -661,9 +698,15 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression:
                     "right(\"Умерла Мадлен Олбрайт - первая женщина на посту главы Госдепа США\", 20)",
                   result: "ту главы Госдепа США"
+  @expression_doc expression: "right(nil, 3)",
+                  result: nil
   def right(ctx, binary, size) do
-    [binary, size] = eval_args!([binary, size], ctx)
-    String.slice(binary, -size, size)
+    text = eval!(binary, ctx)
+
+    if is_binary(text) do
+      size = eval!(size, ctx)
+      String.slice(text, -size, size)
+    end
   end
 
   @doc """
@@ -671,9 +714,15 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "substitute(\"I can't\", \"can't\", \"can do\")",
                   result: "I can do"
+  @expression_doc expression: "substitute(nil, \"can't\", \"can do\")",
+                  result: nil
   def substitute(ctx, subject, pattern, replacement) do
-    [subject, pattern, replacement] = eval_args!([subject, pattern, replacement], ctx)
-    String.replace(subject, pattern, replacement)
+    text = eval!(subject, ctx)
+
+    if is_binary(text) do
+      [pattern, replacement] = eval_args!([pattern, replacement], ctx)
+      String.replace(text, pattern, replacement)
+    end
   end
 
   @doc """
@@ -701,8 +750,14 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "upper(\"foo\")",
                   result: "FOO"
+  @expression_doc expression: "upper(nil)",
+                  result: nil
   def upper(ctx, binary) do
-    String.upcase(eval!(binary, ctx))
+    text = eval!(binary, ctx)
+
+    if is_binary(text) do
+      String.upcase(text)
+    end
   end
 
   @doc """
@@ -710,8 +765,10 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "first_word(\"foo bar baz\")",
                   result: "foo"
+  @expression_doc expression: "first_word(nil)",
+                  result: ""
   def first_word(ctx, binary) do
-    [word | _] = String.split(eval!(binary, ctx), " ")
+    [word | _] = String.split(to_string(eval!(binary, ctx)), " ")
     word
   end
 
@@ -733,6 +790,7 @@ defmodule Expression.Callbacks.Standard do
   Formats digits in text for reading in TTS
   """
   @expression_doc expression: "read_digits(\"+271\")", result: "plus two seven one"
+  @expression_doc expression: "read_digits(nil)", result: ""
   def read_digits(ctx, binary) do
     map = %{
       "+" => "plus",
@@ -750,6 +808,7 @@ defmodule Expression.Callbacks.Standard do
 
     binary
     |> eval!(ctx)
+    |> to_string()
     |> String.graphemes()
     |> Enum.map(fn grapheme -> Map.get(map, grapheme, nil) end)
     |> Enum.reject(&is_nil/1)
@@ -761,15 +820,27 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "remove_first_word(\"foo bar\")", result: "bar"
   @expression_doc expression: "remove_first_word(\"foo-bar\", \"-\")", result: "bar"
+  @expression_doc expression: "remove_first_word(nil)", result: ""
+  @expression_doc expression: "remove_first_word(nil, \"-\")", result: ""
   def remove_first_word(ctx, binary) do
-    binary = eval!(binary, ctx)
     separator = " "
-    tl(String.split(binary, separator)) |> Enum.join(separator)
+
+    binary
+    |> eval!(ctx)
+    |> to_string()
+    |> String.split(separator)
+    |> tl()
+    |> Enum.join(separator)
   end
 
   def remove_first_word(ctx, binary, separator) do
     [binary, separator] = eval_args!([binary, separator], ctx)
-    tl(String.split(binary, separator)) |> Enum.join(separator)
+
+    binary
+    |> to_string()
+    |> String.split(separator)
+    |> tl()
+    |> Enum.join(separator)
   end
 
   @doc """
@@ -781,11 +852,13 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression: "word(\"hello cow-boy\", 2)", result: "cow"
   @expression_doc expression: "word(\"hello cow-boy\", 2, true)", result: "cow-boy"
   @expression_doc expression: "word(\"hello cow-boy\", -1)", result: "boy"
+  @expression_doc expression: "word(nil, 1)", result: ""
   def word(ctx, binary, n) do
     [binary, n] = eval_args!([binary, n], ctx)
-    parts = String.split(binary, @punctuation_pattern)
+    parts = String.split(to_string(binary), @punctuation_pattern)
 
     # This slicing seems off.
+    # but we copy it from the standard lib
     [part] =
       if n < 0 do
         Enum.slice(parts, n, 1)
@@ -799,7 +872,7 @@ defmodule Expression.Callbacks.Standard do
   def word(ctx, binary, n, by_spaces) do
     [binary, n, by_spaces] = eval_args!([binary, n, by_spaces], ctx)
     splitter = if(by_spaces, do: " ", else: @punctuation_pattern)
-    parts = String.split(binary, splitter)
+    parts = String.split(to_string(binary), splitter)
 
     # This slicing seems off.
     [part] =
@@ -822,20 +895,32 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "word_count(\"hello cow-boy\")", result: 3
   @expression_doc expression: "word_count(\"hello cow-boy\", true)", result: 2
+  @expression_doc expression: "word_count(nil)", result: 0
   def word_count(ctx, binary) do
-    binary
-    |> eval!(ctx)
-    |> String.split(@punctuation_pattern)
-    |> Enum.count()
+    text = eval!(binary, ctx)
+
+    if is_nil(text) do
+      0
+    else
+      text
+      |> String.split(@punctuation_pattern)
+      |> Enum.count()
+    end
   end
 
   def word_count(ctx, binary, by_spaces) do
-    [binary, by_spaces] = eval_args!([binary, by_spaces], ctx)
-    splitter = if(by_spaces, do: " ", else: @punctuation_pattern)
+    text = eval!(binary, ctx)
 
-    binary
-    |> String.split(splitter)
-    |> Enum.count()
+    if is_nil(text) do
+      0
+    else
+      [by_spaces] = eval_args!([by_spaces], ctx)
+      splitter = if(by_spaces, do: " ", else: @punctuation_pattern)
+
+      text
+      |> String.split(splitter)
+      |> Enum.count()
+    end
   end
 
   @doc """
@@ -853,12 +938,13 @@ defmodule Expression.Callbacks.Standard do
                   result: "FLOIP expressions"
   @expression_doc expression: "word_slice(\"FLOIP expressions are fun\", -1)",
                   result: "fun"
+  @expression_doc expression: "word_slice(nil, -1)",
+                  result: ""
   def word_slice(ctx, binary, start) do
     [binary, start] = eval_args!([binary, start], ctx)
 
     parts =
-      binary
-      |> String.split(" ")
+      String.split(to_string(binary), " ")
 
     cond do
       start > 0 ->
@@ -879,12 +965,14 @@ defmodule Expression.Callbacks.Standard do
     cond do
       stop > 0 ->
         binary
+        |> to_string()
         |> String.split(@punctuation_pattern)
         |> Enum.slice((start - 1)..(stop - 2)//1)
         |> Enum.join(" ")
 
       stop < 0 ->
         binary
+        |> to_string()
         |> String.split(@punctuation_pattern)
         |> Enum.slice((start - 1)..(stop - 1)//1)
         |> Enum.join(" ")
@@ -898,12 +986,14 @@ defmodule Expression.Callbacks.Standard do
     case stop do
       stop when stop > 0 ->
         binary
+        |> to_string()
         |> String.split(splitter)
         |> Enum.slice((start - 1)..(stop - 2))
         |> Enum.join(" ")
 
       stop when stop < 0 ->
         binary
+        |> to_string()
         |> String.split(splitter)
         |> Enum.slice((start - 1)..(stop - 1))
         |> Enum.join(" ")
@@ -979,11 +1069,17 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "has_all_words(\"the quick brown FOX\", \"the fox\")", result: true
   @expression_doc expression: "has_all_words(\"the quick brown FOX\", \"red fox\")", result: false
+  @expression_doc expression: "has_all_words(nil, \"red fox\")", result: false
   def has_all_words(ctx, haystack, words) do
     [haystack, words] = eval_args!([haystack, words], ctx)
-    {patterns, results} = search_words(haystack, words)
-    # future match result: Enum.join(results, " ")
-    Enum.count(patterns) == Enum.count(results)
+
+    if is_binary(haystack) and is_binary(words) do
+      {patterns, results} = search_words(haystack, words)
+      # future match result: Enum.join(results, " ")
+      Enum.count(patterns) == Enum.count(results)
+    else
+      false
+    end
   end
 
   @doc """
@@ -996,27 +1092,31 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression: "has_any_word(\"The Quick Brown Fox\", \"yellow\")",
                   result: %{"__value__" => false, "match" => nil}
   def has_any_word(ctx, haystack, words) do
-    [haystack, words] = eval_args!([haystack, words], ctx)
-    haystack_words = String.split(haystack)
-    haystacks_lowercase = Enum.map(haystack_words, &String.downcase/1)
-    words_lowercase = String.split(words) |> Enum.map(&String.downcase/1)
+    haystack = eval!(haystack, ctx)
 
-    matched_indices =
-      haystacks_lowercase
-      |> Enum.with_index()
-      |> Enum.filter(fn {haystack_word, _index} ->
-        Enum.member?(words_lowercase, haystack_word)
-      end)
-      |> Enum.map(fn {_haystack_word, index} -> index end)
+    if is_binary(haystack) do
+      [words] = eval_args!([words], ctx)
+      haystack_words = String.split(haystack)
+      haystacks_lowercase = Enum.map(haystack_words, &String.downcase/1)
+      words_lowercase = words |> String.split() |> Enum.map(&String.downcase/1)
 
-    matched_haystack_words = Enum.map(matched_indices, &Enum.at(haystack_words, &1))
+      matched_indices =
+        haystacks_lowercase
+        |> Enum.with_index()
+        |> Enum.filter(fn {haystack_word, _index} ->
+          Enum.member?(words_lowercase, haystack_word)
+        end)
+        |> Enum.map(fn {_haystack_word, index} -> index end)
 
-    match? = Enum.any?(matched_haystack_words)
+      matched_haystack_words = Enum.map(matched_indices, &Enum.at(haystack_words, &1))
 
-    %{
-      "__value__" => match?,
-      "match" => if(match?, do: Enum.join(matched_haystack_words, " "), else: nil)
-    }
+      match? = Enum.any?(matched_haystack_words)
+
+      %{
+        "__value__" => match?,
+        "match" => if(match?, do: Enum.join(matched_haystack_words, " "), else: nil)
+      }
+    end
   end
 
   @doc """
@@ -1215,11 +1315,13 @@ defmodule Expression.Callbacks.Standard do
                   result: %{"__value__" => true, "email" => "foo1@bar.com"}
   @expression_doc expression: "has_email(\"i'm not sharing my email\")",
                   result: %{"__value__" => false, "email" => nil}
+  @expression_doc expression: "has_email(nil)",
+                  result: %{"__value__" => false, "email" => nil}
   def has_email(ctx, expression) do
     expression = eval!(expression, ctx)
 
     email =
-      case Regex.run(~r/([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)/, expression) do
+      case Regex.run(~r/([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)/, to_string(expression)) do
         # future match result: match
         [match | _] -> match
         nil -> nil
@@ -1261,6 +1363,9 @@ defmodule Expression.Callbacks.Standard do
     # future match result: group
     !!group
   end
+
+  defp extract_numberish(nil), do: nil
+  defp extract_numberish(value) when is_number(value), do: value
 
   defp extract_numberish(expression) do
     with [match] <-
@@ -1478,7 +1583,7 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression: "has_only_text(\"foo\", \"FOO\")", result: false
   def has_only_text(ctx, expression_one, expression_two) do
     [expression_one, expression_two] = eval_args!([expression_one, expression_two], ctx)
-    expression_one == expression_two
+    to_string(expression_one) == to_string(expression_two)
   end
 
   @doc """
@@ -1488,10 +1593,12 @@ defmodule Expression.Callbacks.Standard do
   """
   @expression_doc expression: "has_pattern(\"Buy cheese please\", \"buy (\\w+)\")", result: true
   @expression_doc expression: "has_pattern(\"Sell cheese please\", \"buy (\\w+)\")", result: false
+  @expression_doc expression: "has_pattern(nil, \"buy (\\w+)\")", result: false
   def has_pattern(ctx, expression, pattern) do
     [expression, pattern] = eval_args!([expression, pattern], ctx)
 
-    with {:ok, regex} <- Regex.compile(String.trim(pattern), "i"),
+    with true <- is_binary(expression),
+         {:ok, regex} <- Regex.compile(String.trim(pattern), "i"),
          [[_first | _remainder]] <- Regex.scan(regex, String.trim(expression), capture: :all) do
       # Future match result: first
       true
@@ -1512,16 +1619,18 @@ defmodule Expression.Callbacks.Standard do
                   result: %{"__value__" => true, "phonenumber" => "+12067799294"}
   @expression_doc expression: "has_phone(\"my number is none of your business\", \"US\")",
                   result: %{"__value__" => false, "phonenumber" => nil}
+  @expression_doc expression: "has_phone(nil, \"US\")",
+                  result: %{"__value__" => false, "phonenumber" => nil}
   def has_phone(ctx, expression) do
     [expression] = eval_args!([expression], ctx)
-    letters_removed = Regex.replace(~r/[a-z]/i, expression, "")
+    letters_removed = Regex.replace(~r/[a-z]/i, to_string(expression), "")
 
     parse_phone_number(letters_removed, "")
   end
 
   def has_phone(ctx, expression, country_code) do
     [expression, country_code] = eval_args!([expression, country_code], ctx)
-    letters_removed = Regex.replace(~r/[a-z]/i, expression, "")
+    letters_removed = Regex.replace(~r/[a-z]/i, to_string(expression), "")
 
     parse_phone_number(letters_removed, country_code)
   end
@@ -1559,9 +1668,14 @@ defmodule Expression.Callbacks.Standard do
   @expression_doc expression: "has_text(\"\")", result: false
   @expression_doc expression: "has_text(\" \n\")", result: false
   @expression_doc expression: "has_text(123)", result: true
+  @expression_doc expression: "has_text(nil)", result: false
   def has_text(ctx, expression) do
-    expression = eval!(expression, ctx) |> to_string()
-    String.trim(expression) != ""
+    expression =
+      expression
+      |> eval!(ctx)
+      |> to_string()
+
+    String.trim(to_string(expression)) != ""
   end
 
   @doc """

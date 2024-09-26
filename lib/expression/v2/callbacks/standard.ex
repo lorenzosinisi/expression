@@ -1001,6 +1001,7 @@ defmodule Expression.V2.Callbacks.Standard do
     !!group
   end
 
+  defp extract_numberish(nil), do: nil
   defp extract_numberish(value) when is_number(value), do: value
 
   defp extract_numberish(expression) do
@@ -1054,6 +1055,8 @@ defmodule Expression.V2.Callbacks.Standard do
   @expression_doc expression: "has_number(\"العدد ٤٢\")", result: true
   @expression_doc expression: "has_number(\"٠.٥\")", result: true
   @expression_doc expression: "has_number(\"0.6\")", result: true
+  @expression_doc expression: "has_number(\"\")", result: false
+  @expression_doc expression: "has_number(value)", context: %{"value" => nil}, result: false
 
   def has_number(_ctx, expression) do
     number = extract_numberish(expression)
